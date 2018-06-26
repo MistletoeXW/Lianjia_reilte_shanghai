@@ -272,6 +272,20 @@ def Get_Date(url):
             images = ",".join(CarouselImages)
             data['CarouselImages'] = images
 
+            address = City + Area + SecArea + CommunityName
+            try:
+                apiKey = '9Rcrs3WWnGeIjaGzlbAQHq3SM5I2h7do'
+                url = 'http://api.map.baidu.com/geocoder/v2/?address=' + address + '&output=json&ak=' + apiKey + '&callback=showLocation'
+                rep = requests.get(url).text
+                pattern = re.compile(r'.*?lng":(.*?),"lat":(.*?)}.*?')
+                match = pattern.match(rep)
+                group = match.group(1, 2)
+                Lng = float(group[0])
+                Lat = float(group[1])
+                data['lng'] = Lng
+                data['lat'] = Lat
+            except:
+                pass
             try:
                 Time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
                 global conn, cur
@@ -279,20 +293,38 @@ def Get_Date(url):
                 conn = pymysql.connect(host='api.mzz.pub', user='root', passwd='miaoxiaojie', db='city_lianjia_data',port=3306, charset='utf8')
                 cur = conn.cursor()
                 cur.execute(
-                    "insert into data_detail (created_at,updated_at,page_id, city, area, sec_area, title, community_name,house_type,square,toward,decoration,lift,flood,total_price,unit_price,image, star, visit,publish_time,building_type,ownership,down_payment_budget,house_use,completion_date,floor,visit7,visit30,carousel_images) " +
-                    "VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s',%d,%d,'%s',%d,%d,'%s','%s','%s','%s','%s',%d,'%s',%d,%d,'%s');"
-                    % (Time,Time,pageId, City, Area, SecArea, Title,CommunityName,HouseType,Square,Toward,Decoration,Lift,Flood, TotalPace, UnitPrice,Image, Star, Visit,PublishTime,BuildingType,Ownership,DownPaymentBudget,HouseUse,CompletionDate,Floor,Visit7,Visit30,images)
+                    "select * from data_detail where page_id = '%s'" % (pageId)
                 )
+                if cur.rowcount == 0:
+                    cur.execute(
+                        "insert into data_detail (created_at,updated_at,page_id, city, area, sec_area, title, community_name,house_type,square,toward,decoration,lift,flood,total_price,unit_price,image, star, visit,publish_time,building_type,ownership,down_payment_budget,house_use,completion_date,floor,visit7,visit30,carousel_images,lng,lat) " +
+                        "VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s',%d,%d,'%s',%d,%d,'%s','%s','%s','%s','%s',%d,'%s',%d,%d,'%s','%f','%f');"
+                        % (Time,Time,pageId, City, Area, SecArea, Title,CommunityName,HouseType,Square,Toward,Decoration,Lift,Flood, TotalPace, UnitPrice,Image, Star, Visit,PublishTime,BuildingType,Ownership,DownPaymentBudget,HouseUse,CompletionDate,Floor,Visit7,Visit30,images,Lng,Lat)
+                    )
+                else:
+                    cur.execute(
+                        "update data_detail set lng='%f',lat='%f' where page_id = '%s'" % (Lng,Lat,pageId)
+                    )
+
                 cur.execute(
-                    "insert into data_list (created_at,updated_at,page_id, city, area, sec_area, title, community_name,house_type,square,toward,decoration,lift,flood,total_price,unit_price,image, star, visit,publish_time) " +
-                    "VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s',%d,%d,'%s',%d,%d,'%s');"
-                    % (Time, Time, pageId, City, Area, SecArea, Title, CommunityName, HouseType, Square, Toward,Decoration, Lift, Flood, TotalPace, UnitPrice, Image, Star, Visit, PublishTime)
+                    "select * from data_list where page_id = '%s'" % (pageId)
                 )
+                if cur.rowcount == 0:
+                    cur.execute(
+                        "insert into data_list (created_at,updated_at,page_id, city, area, sec_area, title, community_name,house_type,square,toward,decoration,lift,flood,total_price,unit_price,image, star, visit,publish_time,lng,lat) " +
+                        "VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s',%d,%d,'%s',%d,%d,'%s','%f','%f');"
+                        % (Time, Time, pageId, City, Area, SecArea, Title, CommunityName, HouseType, Square, Toward,
+                           Decoration, Lift, Flood, TotalPace, UnitPrice, Image, Star, Visit, PublishTime, Lng, Lat)
+                    )
+                else:
+                    cur.execute(
+                        "update data_list set lng='%f',lat='%f' where page_id = '%s'" % (Lng,Lat,pageId)
+                    )
                 conn.commit()  # 将数据写入数据库
                 cur.close()  # 关闭游标
                 conn.close()  # 释放数据库资源
             except Exception :
-                print("写入数据库异常")
+                print("此数据已是最新！")
             print(data)
 
     except:
@@ -305,10 +337,13 @@ if __name__ == '__main__':
     max_retry = 5
     lists = get_s_reion(url)
     if lists is not None:
-        for list in lists[17:]:
+        for list in lists:
             htmls = get_url_s(url, list)
             if htmls is not None and len(htmls) != 0:
-                for html in htmls:
+               for html in htmls:
                     page_list = Get_url_s(html)
-                    for url in page_list[0:3]:
-                        Get_Date(url)
+                    try:
+                        for list in page_list:
+                            Get_Date(list)
+                    except:
+                        pass
