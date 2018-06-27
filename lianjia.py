@@ -337,7 +337,7 @@ if __name__ == '__main__':
     max_retry = 5
     lists = get_s_reion(url)
     if lists is not None:
-        for list in lists:
+        for list in lists[7:]:
             htmls = get_url_s(url, list)
             if htmls is not None and len(htmls) != 0:
                for html in htmls:
